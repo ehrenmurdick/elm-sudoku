@@ -27,11 +27,18 @@ type Msg
 
 
 type alias Model =
+    { current : Board
+    , nextMoves : List Board
+    , valid : Bool
+    }
+
+
+type alias Board =
     List Entry
 
 
-emptyModel : Model
-emptyModel =
+emptyBoard : Board
+emptyBoard =
     map2 (,)
         (range 0 (totalEntryCount - 1))
         (repeat totalEntryCount 0)
@@ -39,7 +46,10 @@ emptyModel =
 
 model : Model
 model =
-    emptyModel
+    { current = emptyBoard
+    , nextMoves = nextMoves emptyBoard
+    , valid = True
+    }
 
 
 
@@ -54,7 +64,7 @@ type alias Entry =
     ( Int, Int )
 
 
-getFirstEmpty : Model -> Maybe Int
+getFirstEmpty : Board -> Maybe Int
 getFirstEmpty model =
     case model of
         [] ->
@@ -67,49 +77,40 @@ getFirstEmpty model =
                 getFirstEmpty ms
 
 
-doMove : Int -> Model -> Int -> Model
-doMove idx model newValue =
-    let
-        move =
-            Update idx newValue
-    in
-        update move model
-
-
-allPossibleMoves : Int -> Model -> List Model
+allPossibleMoves : Int -> Board -> List Board
 allPossibleMoves idx model =
     map (doMove idx model) (range 1 9)
 
 
-validMove : Model -> Bool
-validMove model =
+validMove : Int -> Board -> Bool
+validMove idx board =
     let
         ss =
-            squares model
+            squareAt ( idx, 0 ) board
 
         cs =
-            cols model
+            colAt ( idx, 0 ) board
 
         rs =
-            rows model
+            rowAt ( idx, 0 ) board
 
         allSets =
-            ss ++ cs ++ rs
+            [ ss, cs, rs ]
     in
         all setIsValid allSets
 
 
-nextMoves : Model -> List Model
+nextMoves : Board -> List Board
 nextMoves model =
     case getFirstEmpty model of
         Nothing ->
             []
 
         Just idx ->
-            filter validMove (allPossibleMoves idx model)
+            filter (validMove idx) (allPossibleMoves idx model)
 
 
-complete : Model -> Bool
+complete : Board -> Bool
 complete model =
     let
         nonzero =
@@ -118,12 +119,12 @@ complete model =
         all nonzero model
 
 
-findDone : List Model -> Maybe Model
+findDone : List Board -> Maybe Board
 findDone modelList =
     head (filter complete modelList)
 
 
-solve : List Model -> Model
+solve : List Board -> Board
 solve models =
     case findDone models of
         Nothing ->
@@ -153,7 +154,7 @@ entryStyle : Entry -> Model -> List ( String, String )
 entryStyle entry model =
     let
         rowIsValid =
-            setIsValid (rowAt entry model)
+            setIsValid (rowAt entry model.current)
 
         borderTop =
             if rowIsValid then
@@ -162,7 +163,7 @@ entryStyle entry model =
                 "1px solid red"
 
         colIsValid =
-            setIsValid (colAt entry model)
+            setIsValid (colAt entry model.current)
 
         borderLeft =
             if colIsValid then
@@ -171,7 +172,7 @@ entryStyle entry model =
                 "1px solid red"
 
         sqIsValid =
-            setIsValid (squareAt entry model)
+            setIsValid (squareAt entry model.current)
 
         background =
             if sqIsValid then
@@ -206,7 +207,7 @@ showEntry model ( idx, int ) =
         []
 
 
-setsOfGroup : (Entry -> Int) -> Int -> Model -> List Model
+setsOfGroup : (Entry -> Int) -> Int -> Board -> List Board
 setsOfGroup lookup setsLength model =
     map
         (\i ->
@@ -219,17 +220,17 @@ setsOfGroup lookup setsLength model =
         (range 0 setsLength)
 
 
-rows : Model -> List Model
+rows : Board -> List Board
 rows =
     setsOfGroup rowOf 8
 
 
-cols : Model -> List Model
+cols : Board -> List Board
 cols =
     setsOfGroup colOf 8
 
 
-squares : Model -> List Model
+squares : Board -> List Board
 squares =
     setsOfGroup squareOf 2
 
@@ -302,7 +303,7 @@ view model =
                 , ( "display", "inline-block" )
                 ]
             ]
-            (map (showRow model) (rows model))
+            (map (showRow model) (rows model.current))
         , button [ onClick Solve ] [ text "solve" ]
         ]
 
@@ -315,14 +316,34 @@ updateIndex idx value ( i, v ) =
         ( i, v )
 
 
+doMove : Int -> Board -> Int -> Board
+doMove idx board newValue =
+    map (updateIndex idx newValue) board
+
+
+stepMoves : List Board -> List Board
+stepMoves boardList =
+    case boardList of
+        [] ->
+            []
+
+        m :: ms ->
+            (nextMoves m) ++ ms
+
+
 update : Msg -> Model -> Model
 update msg model =
     case msg of
         Update idx value ->
-            map (updateIndex idx value) model
+            { model | current = doMove idx model.current value }
 
         Solve ->
-            solve [ model ]
+            case model.nextMoves of
+                [] ->
+                    model
+
+                m :: ms ->
+                    { model | current = m, nextMoves = stepMoves model.nextMoves }
 
 
 main : Program Never Model Msg
