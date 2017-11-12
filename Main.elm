@@ -1,44 +1,14 @@
 module Main exposing (..)
 
-import String exposing (toInt)
-import Result exposing (withDefault)
-import Tuple exposing (second)
+import Html exposing (Html, beginnerProgram, button, div, input, text)
+import Html.Attributes exposing (attribute, id, style, value)
+import Html.Events exposing (onClick, onInput)
+import List exposing (all, concatMap, drop, filter, head, length, map, map2, range, repeat, take)
 import Maybe
-import Set
-    exposing
-        ( fromList
-        , diff
-        , isEmpty
-        , size
-        )
-import List
-    exposing
-        ( all
-        , drop
-        , filter
-        , length
-        , map
-        , map2
-        , range
-        , repeat
-        , take
-        )
-import Html
-    exposing
-        ( beginnerProgram
-        , div
-        , Html
-        , input
-        , text
-        )
-import Html.Attributes
-    exposing
-        ( id
-        , attribute
-        , style
-        , value
-        )
-import Html.Events exposing (onInput)
+import Result exposing (withDefault)
+import Set exposing (diff, fromList, isEmpty, size)
+import String exposing (toInt)
+import Tuple exposing (second)
 
 
 width : Int
@@ -53,6 +23,7 @@ totalEntryCount =
 
 type Msg
     = Update Int Int
+    | Solve
 
 
 type alias Model =
@@ -136,6 +107,30 @@ nextMoves model =
 
         Just idx ->
             filter validMove (allPossibleMoves idx model)
+
+
+complete : Model -> Bool
+complete model =
+    let
+        nonzero =
+            \( idx, val ) -> val /= 0
+    in
+        all nonzero model
+
+
+findDone : List Model -> Maybe Model
+findDone modelList =
+    head (filter complete modelList)
+
+
+solve : List Model -> Model
+solve models =
+    case findDone models of
+        Nothing ->
+            solve (concatMap nextMoves models)
+
+        Just m ->
+            m
 
 
 parseInput : Int -> String -> Msg
@@ -300,13 +295,16 @@ setIsValid es =
 
 view : Model -> Html Msg
 view model =
-    div
-        [ style
-            [ ( "padding", "3em" )
-            , ( "display", "inline-block" )
+    div []
+        [ div
+            [ style
+                [ ( "padding", "3em" )
+                , ( "display", "inline-block" )
+                ]
             ]
+            (map (showRow model) (rows model))
+        , button [ onClick Solve ] [ text "solve" ]
         ]
-        (map (showRow model) (rows model))
 
 
 updateIndex : Int -> Int -> Entry -> Entry
@@ -322,6 +320,9 @@ update msg model =
     case msg of
         Update idx value ->
             map (updateIndex idx value) model
+
+        Solve ->
+            solve [ model ]
 
 
 main : Program Never Model Msg
