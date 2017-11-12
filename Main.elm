@@ -3,16 +3,20 @@ module Main exposing (..)
 import String exposing (toInt)
 import Result exposing (withDefault)
 import Tuple exposing (second)
+import Maybe
 import Set
     exposing
         ( fromList
         , diff
         , isEmpty
+        , size
         )
 import List
     exposing
-        ( drop
+        ( all
+        , drop
         , filter
+        , length
         , map
         , map2
         , range
@@ -42,8 +46,8 @@ width =
     9
 
 
-length : Int
-length =
+totalEntryCount : Int
+totalEntryCount =
     width * width
 
 
@@ -58,8 +62,8 @@ type alias Model =
 emptyModel : Model
 emptyModel =
     map2 (,)
-        (range 0 (length - 1))
-        (repeat length 0)
+        (range 0 (totalEntryCount - 1))
+        (repeat totalEntryCount 0)
 
 
 model : Model
@@ -77,6 +81,61 @@ model =
 
 type alias Entry =
     ( Int, Int )
+
+
+getFirstEmpty : Model -> Maybe Int
+getFirstEmpty model =
+    case model of
+        [] ->
+            Nothing
+
+        ( idx, val ) :: ms ->
+            if val == 0 then
+                Just idx
+            else
+                getFirstEmpty ms
+
+
+doMove : Int -> Model -> Int -> Model
+doMove idx model newValue =
+    let
+        move =
+            Update idx newValue
+    in
+        update move model
+
+
+allPossibleMoves : Int -> Model -> List Model
+allPossibleMoves idx model =
+    map (doMove idx model) (range 1 9)
+
+
+validMove : Model -> Bool
+validMove model =
+    let
+        ss =
+            squares model
+
+        cs =
+            cols model
+
+        rs =
+            rows model
+
+        allSets =
+            ss ++ cs ++ rs
+    in
+        all setIsValid allSets
+
+
+nextMoves : Model -> List Model
+nextMoves model =
+    case getFirstEmpty model of
+        Nothing ->
+            []
+
+        Just idx ->
+            filter validMove (allPossibleMoves idx model)
 
 
 parseInput : Int -> String -> Msg
@@ -152,17 +211,32 @@ showEntry model ( idx, int ) =
         []
 
 
-rows : Model -> List Model
-rows model =
+setsOfGroup : (Entry -> Int) -> Int -> Model -> List Model
+setsOfGroup lookup setsLength model =
     map
         (\i ->
             filter
                 (\entry ->
-                    rowOf entry == i
+                    lookup entry == i
                 )
                 model
         )
-        (range 0 (width - 1))
+        (range 0 setsLength)
+
+
+rows : Model -> List Model
+rows =
+    setsOfGroup rowOf 8
+
+
+cols : Model -> List Model
+cols =
+    setsOfGroup colOf 8
+
+
+squares : Model -> List Model
+squares =
+    setsOfGroup squareOf 2
 
 
 containingSet : (Entry -> Int) -> Entry -> List Entry -> List Entry
@@ -210,15 +284,18 @@ colOf ( idx, _ ) =
 
 
 setIsValid : List Entry -> Bool
-setIsValid entryList =
+setIsValid es =
     let
-        entrySet =
-            fromList (map second entryList)
+        nonzero ( idx, val ) =
+            val /= 0
 
-        requiredSet =
-            fromList (range 1 width)
+        entryList =
+            map second (filter nonzero es)
+
+        entrySet =
+            fromList entryList
     in
-        isEmpty (diff requiredSet entrySet)
+        (size entrySet) == (length entryList)
 
 
 view : Model -> Html Msg
