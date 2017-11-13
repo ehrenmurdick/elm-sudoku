@@ -3,7 +3,7 @@ module Main exposing (..)
 import Html exposing (Html, button, div, input, program, text)
 import Html.Attributes exposing (attribute, id, style, value)
 import Html.Events exposing (onClick, onInput)
-import List exposing (all, concatMap, drop, filter, head, length, map, map2, range, repeat, take)
+import List exposing (all, any, concatMap, drop, filter, head, length, map, map2, range, repeat, reverse, take)
 import Maybe
 import Result exposing (withDefault)
 import Set exposing (diff, fromList, isEmpty, size)
@@ -28,9 +28,13 @@ type Msg
     | Tick Time.Time
 
 
+type alias Move =
+    { board : Board, idx : Int }
+
+
 type alias Model =
     { current : Board
-    , nextMoves : List Board
+    , nextMoves : List Move
     , valid : Bool
     , solving : Bool
     , lastChangeIdx : Int
@@ -64,7 +68,7 @@ subscriptions : Model -> Sub Msg
 subscriptions model =
     case model.solving of
         True ->
-            Time.every (Time.millisecond * 100) Tick
+            Time.every (Time.millisecond * 1) Tick
 
         False ->
             Sub.none
@@ -95,14 +99,17 @@ getFirstEmpty model =
                 getFirstEmpty ms
 
 
-allPossibleMoves : Int -> Board -> List Board
+allPossibleMoves : Int -> Board -> List Move
 allPossibleMoves idx model =
     map (doMove idx model) (range 1 9)
 
 
-validMove : Int -> Board -> Bool
-validMove idx board =
+validMove : Int -> Move -> Bool
+validMove idx move =
     let
+        board =
+            move.board
+
         ss =
             squareAt ( idx, 0 ) board
 
@@ -118,7 +125,7 @@ validMove idx board =
         all setIsValid allSets
 
 
-nextMoves : Board -> List Board
+nextMoves : Board -> List Move
 nextMoves model =
     case getFirstEmpty model of
         Nothing ->
@@ -140,16 +147,6 @@ complete model =
 findDone : List Board -> Maybe Board
 findDone modelList =
     head (filter complete modelList)
-
-
-solve : List Board -> Board
-solve models =
-    case findDone models of
-        Nothing ->
-            solve (concatMap nextMoves models)
-
-        Just m ->
-            m
 
 
 parseInput : Int -> String -> Msg
@@ -203,9 +200,15 @@ entryStyle entry model =
 
         shadow =
             if isLastChange then
-                "0 0 3px black"
+                "0 0 3px blue"
             else
                 ""
+
+        transition =
+            if isLastChange then
+                ""
+            else
+                "box-shadow 1s"
     in
         [ ( "border-top", borderTop )
         , ( "border-left", borderLeft )
@@ -213,6 +216,7 @@ entryStyle entry model =
         , ( "border-bottom", borderTop )
         , ( "background-color", background )
         , ( "box-shadow", shadow )
+        , ( "transition", transition )
         ]
 
 
@@ -344,28 +348,37 @@ updateIndex idx value ( i, v ) =
         ( i, v )
 
 
-doMove : Int -> Board -> Int -> Board
+doMove : Int -> Board -> Int -> Move
 doMove idx board newValue =
-    map (updateIndex idx newValue) board
+    { board = map (updateIndex idx newValue) board
+    , idx = idx
+    }
 
 
-stepMoves : List Board -> List Board
+stepMoves : List Move -> List Move
 stepMoves boardList =
     case boardList of
         [] ->
             []
 
         m :: ms ->
-            (nextMoves m) ++ ms
+            (nextMoves m.board) ++ ms
 
 
 done : Model -> Bool
 done model =
-    let
-        nonzero ( idx, v ) =
-            v /= 0
-    in
-        all nonzero model.current
+    not (any (\( _, v ) -> v == 0) model.current)
+
+
+
+-- done : Model -> Bool
+-- done model =
+--     let
+--         nonzero ( idx, v ) =
+--             v /= 0
+--     in
+--         all nonzero model.current
+--
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -373,7 +386,7 @@ update msg model =
     case msg of
         Update idx value ->
             ( { model
-                | current = doMove idx model.current value
+                | current = (doMove idx model.current value).board
                 , lastChangeIdx = idx
               }
             , Cmd.none
@@ -389,8 +402,9 @@ update msg model =
 
                     m :: ms ->
                         ( { model
-                            | current = m
+                            | current = m.board
                             , nextMoves = stepMoves model.nextMoves
+                            , lastChangeIdx = m.idx
                           }
                         , Cmd.none
                         )
