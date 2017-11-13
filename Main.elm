@@ -1,6 +1,6 @@
 module Main exposing (..)
 
-import Html exposing (Html, beginnerProgram, button, div, input, text)
+import Html exposing (Html, button, div, input, program, text)
 import Html.Attributes exposing (attribute, id, style, value)
 import Html.Events exposing (onClick, onInput)
 import List exposing (all, concatMap, drop, filter, head, length, map, map2, range, repeat, take)
@@ -8,7 +8,8 @@ import Maybe
 import Result exposing (withDefault)
 import Set exposing (diff, fromList, isEmpty, size)
 import String exposing (toInt)
-import Tuple exposing (second)
+import Time
+import Tuple exposing (first, second)
 
 
 width : Int
@@ -24,12 +25,15 @@ totalEntryCount =
 type Msg
     = Update Int Int
     | Solve
+    | Tick Time.Time
 
 
 type alias Model =
     { current : Board
     , nextMoves : List Board
     , valid : Bool
+    , solving : Bool
+    , lastChangeIdx : Int
     }
 
 
@@ -44,12 +48,26 @@ emptyBoard =
         (repeat totalEntryCount 0)
 
 
-model : Model
-model =
-    { current = emptyBoard
-    , nextMoves = nextMoves emptyBoard
-    , valid = True
-    }
+init : ( Model, Cmd Msg )
+init =
+    ( { current = emptyBoard
+      , nextMoves = nextMoves emptyBoard
+      , valid = True
+      , solving = False
+      , lastChangeIdx = -1
+      }
+    , Cmd.none
+    )
+
+
+subscriptions : Model -> Sub Msg
+subscriptions model =
+    case model.solving of
+        True ->
+            Time.every (Time.millisecond * 100) Tick
+
+        False ->
+            Sub.none
 
 
 
@@ -179,12 +197,22 @@ entryStyle entry model =
                 "white"
             else
                 "pink"
+
+        isLastChange =
+            (first entry) == model.lastChangeIdx
+
+        shadow =
+            if isLastChange then
+                "0 0 3px black"
+            else
+                ""
     in
         [ ( "border-top", borderTop )
         , ( "border-left", borderLeft )
         , ( "border-right", borderLeft )
         , ( "border-bottom", borderTop )
         , ( "background-color", background )
+        , ( "box-shadow", shadow )
         ]
 
 
@@ -331,25 +359,56 @@ stepMoves boardList =
             (nextMoves m) ++ ms
 
 
-update : Msg -> Model -> Model
+done : Model -> Bool
+done model =
+    let
+        nonzero ( idx, v ) =
+            v /= 0
+    in
+        all nonzero model.current
+
+
+update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         Update idx value ->
-            { model | current = doMove idx model.current value }
+            ( { model
+                | current = doMove idx model.current value
+                , lastChangeIdx = idx
+              }
+            , Cmd.none
+            )
+
+        Tick _ ->
+            if done model then
+                ( { model | solving = False }, Cmd.none )
+            else
+                case model.nextMoves of
+                    [] ->
+                        ( model, Cmd.none )
+
+                    m :: ms ->
+                        ( { model
+                            | current = m
+                            , nextMoves = stepMoves model.nextMoves
+                          }
+                        , Cmd.none
+                        )
 
         Solve ->
-            case model.nextMoves of
-                [] ->
-                    model
-
-                m :: ms ->
-                    { model | current = m, nextMoves = stepMoves model.nextMoves }
+            ( { model
+                | solving = not model.solving
+                , nextMoves = nextMoves model.current
+              }
+            , Cmd.none
+            )
 
 
 main : Program Never Model Msg
 main =
-    beginnerProgram
-        { model = model
+    program
+        { init = init
+        , subscriptions = subscriptions
         , view = view
         , update = update
         }
