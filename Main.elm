@@ -14,13 +14,20 @@ import Tuple exposing (first, second)
 
 width : Int
 width =
-    9
+    4
 
+
+sqrtWidth : Int
+sqrtWidth =
+    2
 
 totalEntryCount : Int
 totalEntryCount =
     width * width
 
+sqIndx : Int
+sqIndx =
+    1
 
 type Msg
     = Update Int Int
@@ -101,7 +108,7 @@ getFirstEmpty model =
 
 allPossibleMoves : Int -> Board -> List Move
 allPossibleMoves idx model =
-    map (doMove idx model) (range 1 9)
+    map (doMove idx model) (range 1 width)
 
 
 validMove : Int -> Move -> Bool
@@ -254,17 +261,17 @@ setsOfGroup lookup setsLength model =
 
 rows : Board -> List Board
 rows =
-    setsOfGroup rowOf 8
+    setsOfGroup rowOf (width - 1)
 
 
 cols : Board -> List Board
 cols =
-    setsOfGroup colOf 8
+    setsOfGroup colOf (width - 1)
 
 
 squares : Board -> List Board
 squares =
-    setsOfGroup squareOf 2
+    setsOfGroup squareOf sqIndx
 
 
 containingSet : (Entry -> Int) -> Entry -> List Entry -> List Entry
@@ -298,7 +305,7 @@ showRow model row =
 
 squareOf : Entry -> Int
 squareOf ( idx, _ ) =
-    (((idx % 9) // 3) * 3) + (idx // 9) // 3
+    (((idx % width) // sqrtWidth) * sqrtWidth) + (idx // width) // sqrtWidth
 
 
 rowOf : Entry -> Int
