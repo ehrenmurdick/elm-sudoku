@@ -8809,11 +8809,6 @@ var _user$project$Main$setIsValid = function (es) {
 		_elm_lang$core$Set$size(entrySet),
 		_elm_lang$core$List$length(entryList));
 };
-var _user$project$Main$squareOf = function (_p7) {
-	var _p8 = _p7;
-	var _p9 = _p8._0;
-	return (((A2(_elm_lang$core$Basics_ops['%'], _p9, 9) / 3) | 0) * 3) + ((((_p9 / 9) | 0) / 3) | 0);
-};
 var _user$project$Main$containingSet = F3(
 	function (f, entry, model) {
 		var sameSet = function (a) {
@@ -8823,7 +8818,6 @@ var _user$project$Main$containingSet = F3(
 		};
 		return A2(_elm_lang$core$List$filter, sameSet, model);
 	});
-var _user$project$Main$squareAt = _user$project$Main$containingSet(_user$project$Main$squareOf);
 var _user$project$Main$setsOfGroup = F3(
 	function (lookup, setsLength, model) {
 		return A2(
@@ -8840,11 +8834,10 @@ var _user$project$Main$setsOfGroup = F3(
 			},
 			A2(_elm_lang$core$List$range, 0, setsLength));
 	});
-var _user$project$Main$squares = A2(_user$project$Main$setsOfGroup, _user$project$Main$squareOf, 2);
 var _user$project$Main$complete = function (model) {
-	var nonzero = function (_p10) {
-		var _p11 = _p10;
-		return !_elm_lang$core$Native_Utils.eq(_p11._1, 0);
+	var nonzero = function (_p7) {
+		var _p8 = _p7;
+		return !_elm_lang$core$Native_Utils.eq(_p8._1, 0);
 	};
 	return A2(_elm_lang$core$List$all, nonzero, model);
 };
@@ -8852,31 +8845,26 @@ var _user$project$Main$findDone = function (modelList) {
 	return _elm_lang$core$List$head(
 		A2(_elm_lang$core$List$filter, _user$project$Main$complete, modelList));
 };
-var _user$project$Main$allPossibleMoves = F2(
-	function (idx, model) {
-		return A2(
-			_elm_lang$core$List$map,
-			A2(_user$project$Main$doMove, idx, model),
-			A2(_elm_lang$core$List$range, 1, 9));
-	});
 var _user$project$Main$getFirstEmpty = function (model) {
 	getFirstEmpty:
 	while (true) {
-		var _p12 = model;
-		if (_p12.ctor === '[]') {
+		var _p9 = model;
+		if (_p9.ctor === '[]') {
 			return _elm_lang$core$Maybe$Nothing;
 		} else {
-			if (_elm_lang$core$Native_Utils.eq(_p12._0._1, 0)) {
-				return _elm_lang$core$Maybe$Just(_p12._0._0);
+			if (_elm_lang$core$Native_Utils.eq(_p9._0._1, 0)) {
+				return _elm_lang$core$Maybe$Just(_p9._0._0);
 			} else {
-				var _v6 = _p12._1;
-				model = _v6;
+				var _v5 = _p9._1;
+				model = _v5;
 				continue getFirstEmpty;
 			}
 		}
 	}
 };
-var _user$project$Main$width = 9;
+var _user$project$Main$sqIndx = 1;
+var _user$project$Main$sqrtWidth = 2;
+var _user$project$Main$width = 4;
 var _user$project$Main$totalEntryCount = _user$project$Main$width * _user$project$Main$width;
 var _user$project$Main$emptyBoard = A3(
 	_elm_lang$core$List$map2,
@@ -8886,17 +8874,31 @@ var _user$project$Main$emptyBoard = A3(
 		}),
 	A2(_elm_lang$core$List$range, 0, _user$project$Main$totalEntryCount - 1),
 	A2(_elm_lang$core$List$repeat, _user$project$Main$totalEntryCount, 0));
+var _user$project$Main$allPossibleMoves = F2(
+	function (idx, model) {
+		return A2(
+			_elm_lang$core$List$map,
+			A2(_user$project$Main$doMove, idx, model),
+			A2(_elm_lang$core$List$range, 1, _user$project$Main$width));
+	});
+var _user$project$Main$squareOf = function (_p10) {
+	var _p11 = _p10;
+	var _p12 = _p11._0;
+	return (((A2(_elm_lang$core$Basics_ops['%'], _p12, _user$project$Main$width) / _user$project$Main$sqrtWidth) | 0) * _user$project$Main$sqrtWidth) + ((((_p12 / _user$project$Main$width) | 0) / _user$project$Main$sqrtWidth) | 0);
+};
+var _user$project$Main$squares = A2(_user$project$Main$setsOfGroup, _user$project$Main$squareOf, _user$project$Main$sqIndx);
+var _user$project$Main$squareAt = _user$project$Main$containingSet(_user$project$Main$squareOf);
 var _user$project$Main$rowOf = function (_p13) {
 	var _p14 = _p13;
 	return A2(_elm_lang$core$Basics_ops['%'], _p14._0, _user$project$Main$width);
 };
-var _user$project$Main$rows = A2(_user$project$Main$setsOfGroup, _user$project$Main$rowOf, 8);
+var _user$project$Main$rows = A2(_user$project$Main$setsOfGroup, _user$project$Main$rowOf, _user$project$Main$width - 1);
 var _user$project$Main$rowAt = _user$project$Main$containingSet(_user$project$Main$rowOf);
 var _user$project$Main$colOf = function (_p15) {
 	var _p16 = _p15;
 	return (_p16._0 / _user$project$Main$width) | 0;
 };
-var _user$project$Main$cols = A2(_user$project$Main$setsOfGroup, _user$project$Main$colOf, 8);
+var _user$project$Main$cols = A2(_user$project$Main$setsOfGroup, _user$project$Main$colOf, _user$project$Main$width - 1);
 var _user$project$Main$colAt = _user$project$Main$containingSet(_user$project$Main$colOf);
 var _user$project$Main$validMove = F2(
 	function (idx, move) {
